@@ -1,0 +1,2 @@
+Break down the task into a clear implementation plan with multiple phases. Each phase can have multiple steps.
+Before implementing any phase, draft a detailed todo list for that phase. As you implement, check off the todos one by one. After implementing a step in a phase, summarize what has happened and confirm with me to continue to the next step. At the end of the phase summarize what has been implemented, and what is still missing   
