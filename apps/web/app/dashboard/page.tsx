@@ -1,5 +1,4 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
-import Link from "next/link";
 import { redirect } from "next/navigation";
 
 import { AppSidebar } from "@/components/app-sidebar";
@@ -46,9 +45,6 @@ export default async function Dashboard() {
               <SidebarTrigger className="h-9 w-9 hover:bg-accent hover:text-accent-foreground transition-colors" />
               <div className="flex-1" />
               <div className="flex gap-2">
-                <Link href="/api/me" target="_blank" rel="noreferrer">
-                  <Button variant="ghost" size="sm">View API Payload</Button>
-                </Link>
                 <Button size="sm">New Report</Button>
               </div>
             </div>

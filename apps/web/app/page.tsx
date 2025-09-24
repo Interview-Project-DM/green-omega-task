@@ -123,6 +123,11 @@ export default function Page() {
               Book a demo
             </Link>
           </Button>
+          <Button asChild size="sm" variant="secondary" className="ml-auto md:ml-0">
+            <Link href="/sign-in" className="font-semibold">
+              Sign in
+            </Link>
+          </Button>
         </div>
       </header>
 
