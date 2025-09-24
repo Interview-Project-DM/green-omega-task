@@ -1,4 +1,4 @@
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.config import get_settings
@@ -26,6 +26,9 @@ async def me(
 ):
     clerk_id = claims.get("sub")
     email = claims.get("email")
+
+    if not email:
+        raise HTTPException(status_code=400, detail="Email is required in token claims")
 
     user = await UserService.get_user_by_clerk_id(db, clerk_id)
     if not user:

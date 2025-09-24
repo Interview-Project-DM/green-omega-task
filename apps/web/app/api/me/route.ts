@@ -4,7 +4,8 @@ const apiBaseUrl = process.env.API_URL ?? "http://localhost:8000"
 
 export async function GET() {
   const { getToken } = await auth()
-  const token = await getToken()
+  const template = process.env.NEXT_PUBLIC_CLERK_JWT_TEMPLATE || process.env.CLERK_JWT_TEMPLATE
+  const token = template ? await getToken({ template }) : await getToken()
 
   if (!token) {
     return new Response(JSON.stringify({ error: "Unauthorized" }), {
