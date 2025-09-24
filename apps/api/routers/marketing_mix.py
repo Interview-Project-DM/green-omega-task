@@ -5,7 +5,7 @@ from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query
 
-from api.schemas.marketing_mix import (
+from schemas.marketing_mix import (
     ChannelAggregate,
     ChannelPoint,
     GeoListItem,
@@ -19,7 +19,7 @@ from api.schemas.marketing_mix import (
     SummaryMetric,
     SummaryResponse,
 )
-from api.services.marketing_mix_service import MarketingMixService, get_marketing_mix_service
+from services.marketing_mix_service import MarketingMixService, get_marketing_mix_service
 
 router = APIRouter(prefix="/marketing-mix", tags=["marketing-mix"])
 

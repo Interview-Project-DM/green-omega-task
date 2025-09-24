@@ -2,11 +2,11 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from api.config import get_settings
-from api.auth import auth_required
-from api.db.deps import get_db
-from api.routers.marketing_mix import router as marketing_mix_router
-from api.services.user_service import UserService
+from config import get_settings
+from auth import auth_required
+from db.deps import get_db
+from routers.marketing_mix import router as marketing_mix_router
+from services.user_service import UserService
 
 _settings = get_settings()
 app: FastAPI = FastAPI()
@@ -19,6 +19,8 @@ app.add_middleware(
         "http://127.0.0.1:3000",  # Alternative localhost
         "http://localhost:3001",  # Alternative port
         "http://127.0.0.1:3001",  # Alternative port
+        "https://*.vercel.app",  # Vercel deployments
+        "https://green-omega-task-web.vercel.app",  # Production Vercel URL
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
