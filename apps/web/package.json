@@ -13,6 +13,7 @@
     "install": "pnpm install --ignore-scripts --frozen-lockfile"
   },
   "dependencies": {
+    "@clerk/nextjs": "^6.32.2",
     "@workspace/ui": "workspace:*",
     "lucide-react": "^0.475.0",
     "next": "^15.4.5",
