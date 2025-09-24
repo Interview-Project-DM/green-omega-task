@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { GlobalUserSync } from "@/components/global-user-sync";
 import { Providers } from "@/components/providers";
 import "@workspace/ui/globals.css";
 
@@ -31,7 +32,9 @@ export default function RootLayout({
             },
           }}
         >
-          <Providers>{children}</Providers>
+          <Providers>
+            <GlobalUserSync>{children}</GlobalUserSync>
+          </Providers>
         </ClerkProvider>
       </body>
     </html>
