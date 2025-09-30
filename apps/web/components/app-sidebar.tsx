@@ -44,8 +44,8 @@ const navigationItems = [
     icon: Home,
   },
   {
-    title: "Recent Activity",
-    url: "#",
+    title: "Response Curves",
+    url: "/dashboard/response-curves",
     icon: Activity,
   },
   {

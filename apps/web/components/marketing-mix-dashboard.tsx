@@ -17,11 +17,19 @@ import {
   getNationalSeries,
   getSummary,
 } from "@/lib/api/marketing-mix";
+import {
+  MMMContributionSeriesResponse,
+  MMMResponseCurveChannel,
+  getMMMContributions,
+  getMMMResponseCurves,
+} from "@/lib/api/mmm";
 import { formatCompactNumber, formatCurrency, formatPercent } from "@/lib/format";
 import { ChannelContributionTable } from "./channel-contribution-table";
 import { BarChart } from "./charts/bar-chart";
 import { ScatterChart } from "./charts/scatter-chart";
 import { TimeSeriesChart } from "./charts/time-series-chart";
+import { MMMContributionChart } from "./mmm/contribution-chart";
+import { MMMResponseCurveGrid } from "./mmm/response-curve-grid";
 
 interface GeoTotals {
   spend: number
@@ -51,6 +59,10 @@ export function MarketingMixDashboard() {
   const [nationalSeries, setNationalSeries] = useState<NationalSeriesResponse | null>(null)
   const [channelAggregates, setChannelAggregates] = useState<ChannelAggregate[]>([])
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetric[]>([])
+  const [mmmContributions, setMMMContributions] = useState<MMMContributionSeriesResponse | null>(null)
+  const [mmmResponseCurves, setMMMResponseCurves] = useState<MMMResponseCurveChannel[]>([])
+  const [mmmLoading, setMMMLoading] = useState(false)
+  const [mmmError, setMMMError] = useState<string | null>(null)
 
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRangeKey>("12w")
@@ -117,6 +129,35 @@ export function MarketingMixDashboard() {
     }
   }, [selectedGeo])
 
+  useEffect(() => {
+    let cancelled = false
+
+    async function loadMMM() {
+      try {
+        setMMMLoading(true)
+        const [series, curves] = await Promise.all([getMMMContributions(), getMMMResponseCurves()])
+        if (cancelled) return
+        setMMMContributions(series)
+        setMMMResponseCurves(curves.channels)
+        setMMMError(null)
+      } catch (err) {
+        if (cancelled) return
+        const message = err instanceof Error ? err.message : "Failed to load MMM insights"
+        setMMMError(message)
+      } finally {
+        if (!cancelled) {
+          setMMMLoading(false)
+        }
+      }
+    }
+
+    loadMMM()
+
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
   const filteredGeoPoints = useMemo(() => filterPointsByRange(geoSeries?.points, dateRange), [
     geoSeries,
     dateRange,
@@ -130,6 +171,41 @@ export function MarketingMixDashboard() {
     if (!channelAggregates.length) return [] as string[]
     return selectedChannels.length ? selectedChannels : channelAggregates.map((channel) => channel.id)
   }, [channelAggregates, selectedChannels])
+
+  const mmmContributionPoints = useMemo(() => {
+    if (!mmmContributions?.points?.length) return []
+    const active = activeChannelIds.length ? new Set(activeChannelIds) : null
+
+    const normalised = mmmContributions.points.map((point) => {
+      const channels = active
+        ? point.channels.filter((channel) => active.has(channel.id))
+        : point.channels
+      const totalMean = channels.reduce((sum, channel) => sum + channel.mean, 0)
+      const totalLower = channels.reduce((sum, channel) => sum + channel.lower, 0)
+      const totalUpper = channels.reduce((sum, channel) => sum + channel.upper, 0)
+      const recalculated = channels.map((channel) => ({
+        ...channel,
+        share: totalMean ? channel.mean / totalMean : 0,
+      }))
+      return {
+        time: point.time,
+        total_mean: totalMean,
+        total_lower: totalLower,
+        total_upper: totalUpper,
+        channels: recalculated,
+      }
+    })
+
+    return filterPointsByRange(normalised, dateRange)
+  }, [mmmContributions, activeChannelIds, dateRange])
+
+  const mmmCurveChannels = useMemo(() => {
+    if (!mmmResponseCurves.length) return []
+    if (!activeChannelIds.length) return mmmResponseCurves
+    const active = new Set(activeChannelIds)
+    const filtered = mmmResponseCurves.filter((channel) => active.has(channel.id))
+    return filtered.length ? filtered : mmmResponseCurves
+  }, [mmmResponseCurves, activeChannelIds])
 
   const geoTotals = useMemo<GeoTotals | null>(() => {
     if (!filteredGeoPoints.length) return null
@@ -451,6 +527,46 @@ export function MarketingMixDashboard() {
             yFormatter={(value) => formatCompactNumber(value)}
           />
         </div>
+      </section>
+
+      <section className="rounded-3xl border border-white/10 bg-emerald-950/70 p-6 shadow-2xl backdrop-blur">
+        <div className="pb-6">
+          <p className="text-xs uppercase tracking-[0.3em] text-emerald-200/70">
+            Meridian MMM insights
+          </p>
+          <h2 className="mt-1 text-2xl font-semibold text-emerald-50">
+            Contributions & response elasticity
+          </h2>
+          <p className="mt-2 text-sm text-emerald-200/70">
+            Bayesian draws from the saved MMM describe which channels drive incremental conversions and how they
+            saturate as spend scales.
+          </p>
+        </div>
+
+        {mmmLoading ? (
+          <div className="space-y-6">
+            <Skeleton className="h-72 w-full" />
+            <Skeleton className="h-60 w-full" />
+          </div>
+        ) : (
+          <>
+            {mmmError ? (
+              <div className="rounded-lg border border-amber-400/30 bg-amber-500/10 p-4 text-sm text-amber-100">
+                {mmmError}
+              </div>
+            ) : null}
+            {mmmContributionPoints.length ? (
+              <MMMContributionChart data={mmmContributionPoints} />
+            ) : !mmmError ? (
+              <div className="rounded-lg border border-emerald-400/20 bg-emerald-900/40 p-6 text-sm text-emerald-200/80">
+                MMM contribution draws are not available for the selected filters.
+              </div>
+            ) : null}
+            <div className="mt-8">
+              <MMMResponseCurveGrid channels={mmmCurveChannels} />
+            </div>
+          </>
+        )}
       </section>
 
       <section className="rounded-3xl border border-white/10 bg-emerald-950/70 p-6 shadow-2xl backdrop-blur">
