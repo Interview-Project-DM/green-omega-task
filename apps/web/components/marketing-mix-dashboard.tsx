@@ -19,17 +19,15 @@ import {
 } from "@/lib/api/marketing-mix";
 import {
   MMMContributionSeriesResponse,
-  MMMResponseCurveChannel,
   getMMMContributions,
-  getMMMResponseCurves,
 } from "@/lib/api/mmm";
 import { formatCompactNumber, formatCurrency, formatPercent } from "@/lib/format";
 import { ChannelContributionTable } from "./channel-contribution-table";
 import { BarChart } from "./charts/bar-chart";
 import { ScatterChart } from "./charts/scatter-chart";
 import { TimeSeriesChart } from "./charts/time-series-chart";
-import { MMMContributionChart } from "./mmm/contribution-chart";
-import { MMMResponseCurveGrid } from "./mmm/response-curve-grid";
+import { MeridianContributionChart } from "./mmm/meridian-contribution-chart";
+import { MeridianResponseCurves } from "./mmm/meridian-response-curves";
 
 interface GeoTotals {
   spend: number
@@ -60,7 +58,6 @@ export function MarketingMixDashboard() {
   const [channelAggregates, setChannelAggregates] = useState<ChannelAggregate[]>([])
   const [summaryMetrics, setSummaryMetrics] = useState<SummaryMetric[]>([])
   const [mmmContributions, setMMMContributions] = useState<MMMContributionSeriesResponse | null>(null)
-  const [mmmResponseCurves, setMMMResponseCurves] = useState<MMMResponseCurveChannel[]>([])
   const [mmmLoading, setMMMLoading] = useState(false)
   const [mmmError, setMMMError] = useState<string | null>(null)
 
@@ -135,10 +132,9 @@ export function MarketingMixDashboard() {
     async function loadMMM() {
       try {
         setMMMLoading(true)
-        const [series, curves] = await Promise.all([getMMMContributions(), getMMMResponseCurves()])
+        const series = await getMMMContributions()
         if (cancelled) return
         setMMMContributions(series)
-        setMMMResponseCurves(curves.channels)
         setMMMError(null)
       } catch (err) {
         if (cancelled) return
@@ -199,13 +195,6 @@ export function MarketingMixDashboard() {
     return filterPointsByRange(normalised, dateRange)
   }, [mmmContributions, activeChannelIds, dateRange])
 
-  const mmmCurveChannels = useMemo(() => {
-    if (!mmmResponseCurves.length) return []
-    if (!activeChannelIds.length) return mmmResponseCurves
-    const active = new Set(activeChannelIds)
-    const filtered = mmmResponseCurves.filter((channel) => active.has(channel.id))
-    return filtered.length ? filtered : mmmResponseCurves
-  }, [mmmResponseCurves, activeChannelIds])
 
   const geoTotals = useMemo<GeoTotals | null>(() => {
     if (!filteredGeoPoints.length) return null
@@ -555,15 +544,10 @@ export function MarketingMixDashboard() {
                 {mmmError}
               </div>
             ) : null}
-            {mmmContributionPoints.length ? (
-              <MMMContributionChart data={mmmContributionPoints} />
-            ) : !mmmError ? (
-              <div className="rounded-lg border border-emerald-400/20 bg-emerald-900/40 p-6 text-sm text-emerald-200/80">
-                MMM contribution draws are not available for the selected filters.
-              </div>
-            ) : null}
+            <MeridianContributionChart timeGranularity="quarterly" />
             <div className="mt-8">
-              <MMMResponseCurveGrid channels={mmmCurveChannels} />
+              <h3 className="mb-4 text-lg font-semibold text-emerald-50">Response curves</h3>
+              <MeridianResponseCurves confidenceLevel={0.9} plotSeparately={false} includeCI={true} />
             </div>
           </>
         )}

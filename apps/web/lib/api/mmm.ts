@@ -85,3 +85,72 @@ export function getMMMResponseCurves(params?: {
   const suffix = query.toString() ? `?${query.toString()}` : ""
   return request<MMMResponseCurvesResponse>(`/mmm/response-curves${suffix}`)
 }
+
+export function preloadMMMModel() {
+  return request<{ status: string; model_loaded: boolean; analyzer_loaded: boolean; channels: string[] }>(
+    `/mmm/preload`,
+    { method: "POST" }
+  )
+}
+
+// Preload MMM data with caching
+let preloadPromise: Promise<void> | null = null
+
+export function preloadMMMData() {
+  // Return existing promise if already preloading
+  if (preloadPromise) return preloadPromise
+
+  preloadPromise = (async () => {
+    try {
+      // First preload the model itself
+      await preloadMMMModel()
+
+      // Then fetch response curves for all channels (this will cache them)
+      await getMMMResponseCurves({ spendSteps: 50 })
+
+      console.log("MMM data preloaded successfully")
+    } catch (error) {
+      console.error("Failed to preload MMM data:", error)
+      // Reset promise on error so it can be retried
+      preloadPromise = null
+    }
+  })()
+
+  return preloadPromise
+}
+
+export interface MMMResponseCurvesVegaChart {
+  spec: Record<string, unknown>
+  type: "vega-lite"
+  version: string
+}
+
+export function getMMMResponseCurvesChart(params?: {
+  confidenceLevel?: number
+  plotSeparately?: boolean
+  includeCI?: boolean
+}) {
+  const query = new URLSearchParams()
+  if (params?.confidenceLevel) {
+    query.append("confidence_level", params.confidenceLevel.toString())
+  }
+  if (params?.plotSeparately !== undefined) {
+    query.append("plot_separately", params.plotSeparately.toString())
+  }
+  if (params?.includeCI !== undefined) {
+    query.append("include_ci", params.includeCI.toString())
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : ""
+  return request<MMMResponseCurvesVegaChart>(`/mmm/response-curves-chart${suffix}`)
+}
+
+export function getMMMContributionChart(params?: {
+  timeGranularity?: "weekly" | "monthly" | "quarterly"
+}) {
+  const query = new URLSearchParams()
+  if (params?.timeGranularity) {
+    query.append("time_granularity", params.timeGranularity)
+  }
+  const suffix = query.toString() ? `?${query.toString()}` : ""
+  return request<MMMResponseCurvesVegaChart>(`/mmm/contribution-chart${suffix}`)
+}
