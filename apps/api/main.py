@@ -7,6 +7,7 @@ from config import get_settings
 from auth import auth_required
 from db.deps import get_db
 from routers.marketing_mix import router as marketing_mix_router
+from routers.mmm import router as mmm_router
 from services.user_service import UserService
 
 # Set up logging
@@ -32,6 +33,7 @@ app.add_middleware(
 )
 
 app.include_router(marketing_mix_router)
+app.include_router(mmm_router)
 
 @app.get("/health")
 async def health():

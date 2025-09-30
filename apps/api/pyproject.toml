@@ -15,4 +15,7 @@ dependencies = [
     "alembic>=1.13",
     "greenlet>=3.2.4",
     "psycopg2-binary>=2.9.10",
+    "google-meridian>=0.0.3",
+    "numpy>=1.26",
+    "pandas>=2.2",
 ]
