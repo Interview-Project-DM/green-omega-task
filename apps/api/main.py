@@ -1,4 +1,5 @@
 from fastapi import Depends, FastAPI, HTTPException
+import threading
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 import logging
@@ -8,6 +9,7 @@ from auth import auth_required
 from db.deps import get_db
 from routers.marketing_mix import router as marketing_mix_router
 from routers.mmm import router as mmm_router
+from routers.mmm import warm_response_curves_chart_cache  # type: ignore
 from services.user_service import UserService
 
 # Set up logging
@@ -19,12 +21,12 @@ app: FastAPI = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_origins=[
         "http://localhost:3000",  # Next.js default port
         "http://127.0.0.1:3000",  # Alternative localhost
         "http://localhost:3001",  # Alternative port
         "http://127.0.0.1:3001",  # Alternative port
-        "https://*.vercel.app",  # Vercel deployments
         "https://green-omega-task-web.vercel.app",  # Production Vercel URL
     ],
     allow_credentials=True,
@@ -43,6 +45,21 @@ async def health():
 @app.get("/")
 async def root():
     return {"status": "ok"}
+
+
+def _background_warmup() -> None:
+    try:
+        warm_response_curves_chart_cache()
+    except Exception:
+        # Warmup failures should not block the app
+        pass
+
+
+@app.on_event("startup")
+def schedule_warmup() -> None:
+    # Run warmup in a background thread so startup is not blocked
+    thread = threading.Thread(target=_background_warmup, daemon=True)
+    thread.start()
 
 
 @app.get("/me")
