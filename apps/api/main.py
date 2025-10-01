@@ -19,12 +19,12 @@ app: FastAPI = FastAPI()
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+|http://127\.0\.0\.1:\d+",
     allow_origins=[
         "http://localhost:3000",  # Next.js default port
         "http://127.0.0.1:3000",  # Alternative localhost
         "http://localhost:3001",  # Alternative port
         "http://127.0.0.1:3001",  # Alternative port
-        "https://*.vercel.app",  # Vercel deployments
         "https://green-omega-task-web.vercel.app",  # Production Vercel URL
     ],
     allow_credentials=True,
