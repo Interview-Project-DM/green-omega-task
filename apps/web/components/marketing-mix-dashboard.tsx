@@ -6,20 +6,21 @@ import { Button } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 
 import {
-  ChannelAggregate,
-  GeoListItem,
-  GeoSeriesResponse,
-  NationalSeriesResponse,
-  SummaryMetric,
-  getChannelAggregates,
-  getGeoIndex,
-  getGeoSeries,
-  getNationalSeries,
-  getSummary,
+    ChannelAggregate,
+    GeoListItem,
+    GeoSeriesResponse,
+    NationalSeriesResponse,
+    SummaryMetric,
+    getChannelAggregates,
+    getGeoIndex,
+    getGeoSeries,
+    getNationalSeries,
+    getSummary,
 } from "@/lib/api/marketing-mix";
 import {
-  MMMContributionSeriesResponse,
-  getMMMContributions,
+    MMMContributionSeriesResponse,
+    getMMMContributions,
+    preloadMMMData,
 } from "@/lib/api/mmm";
 import { formatCompactNumber, formatCurrency, formatPercent } from "@/lib/format";
 import { ChannelContributionTable } from "./channel-contribution-table";
@@ -71,6 +72,9 @@ export function MarketingMixDashboard() {
 
     async function bootstrap() {
       try {
+        // Fire-and-forget warmup for MMM on page load so first chart request is fast
+        preloadMMMData().catch(() => {})
+
         const [geos, summary, channels, national] = await Promise.all([
           getGeoIndex(),
           getSummary(),

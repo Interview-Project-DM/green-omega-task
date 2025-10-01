@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import copy
 import math
-from concurrent.futures import Future
+from concurrent.futures import Future, TimeoutError
 from threading import Lock
 from time import monotonic
 from typing import Optional, Dict, Tuple
@@ -23,6 +23,7 @@ MMM_MODEL_PATH = Path(__file__).resolve().parents[1] / "saved_mmm.pkl"
 
 
 _CHART_CACHE_TTL_SECONDS = 5 * 60
+_DEFAULT_SPEND_STEPS_FOR_CHART = 50
 
 
 ChartCacheKey = Tuple[float, bool, bool]
@@ -95,7 +96,11 @@ def _get_response_curves_chart_spec(
             return copy.deepcopy(spec)
 
     # Wait for the in-flight computation to complete and return a copy of the spec
-    return copy.deepcopy(promise.result())
+    try:
+        return copy.deepcopy(promise.result(timeout=25))
+    except TimeoutError:
+        # Fail fast rather than hanging requests indefinitely
+        raise HTTPException(status_code=504, detail="Chart computation timed out; please retry")
 
 
 def _build_response_curves_chart_spec(
@@ -104,7 +109,12 @@ def _build_response_curves_chart_spec(
     include_ci: bool,
 ) -> dict[str, object]:
     analyzer = _get_analyzer()
-    response_curves_ds = analyzer.response_curves(confidence_level=confidence_level)
+    # Use a fixed, modest grid to keep compute bounded in production
+    spend_multipliers_array = np.linspace(0, 2, _DEFAULT_SPEND_STEPS_FOR_CHART)
+    response_curves_ds = analyzer.response_curves(
+        spend_multipliers=spend_multipliers_array.tolist(),
+        confidence_level=confidence_level,
+    )
 
     raw_channels = response_curves_ds.coords["channel"].values
     if raw_channels.size == 0:
@@ -278,6 +288,20 @@ def healthz() -> dict[str, object]:
     }
 
 
+def warm_response_curves_chart_cache() -> None:
+    """Compute and cache common response-curve chart specs to avoid first-request stalls."""
+    # Ensure analyzer is initialized
+    _ = _get_analyzer()
+    # Warm a couple of typical combinations; ignore errors during warmup
+    try:
+        _get_response_curves_chart_spec(0.9, False, True)
+    except Exception:
+        pass
+    try:
+        _get_response_curves_chart_spec(0.9, True, True)
+    except Exception:
+        pass
+
 @router.post("/preload")
 def preload_model() -> dict[str, object]:
     """Preload the MMM model and analyzer to warm up the cache."""
@@ -285,6 +309,12 @@ def preload_model() -> dict[str, object]:
         mmm = _load_mmm_model()
         analyzer = _get_analyzer()
         channels = list(mmm.input_data.media_channel.values)
+
+        # Also warm the response-curves chart cache so the first request is fast
+        try:
+            warm_response_curves_chart_cache()
+        except Exception:
+            pass
 
         return {
             "status": "preloaded",
